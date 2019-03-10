@@ -16,6 +16,10 @@
   gather_facts: False
   check_mode: no
   become: True
+
+  vars:
+    gophish_user: gophish
+
   pre_tasks:
     - name: Install python 2.7
       raw: >
@@ -30,7 +34,89 @@
     - setup:
 
   tasks:
-    -
+    - name: create gophish user
+      user:
+        name: "{{ gophish_user }}"
+        system: yes
+
+    # yum install -y sqlite ||apt-get install -y sqlite3 libsqlite3-dev
+    - name: install requirements
+      package:
+        name:
+          - unzip
+          - sqlite3
+          - libsqlite3-dev
+        state: present
+
+    # https://github.com/gophish/gophish/blob/master/ansible-playbook/roles/gophish/tasks/main.yml
+
+    - name: download latest Gophish release
+      get_url:
+        validate_certs: True
+        url: https://getgophish.com/releases/latest/linux/64
+        dest: "/home/{{ gophish_user }}/gophish.zip"
+        mode: 0755
+        owner: "{{ gophish_user }}"
+        group: "{{ gophish_user }}"
+
+    - name: create working directoriy for gophish
+      file:
+        path: "/home/{{ gophish_user }}/gophish"
+        state: directory
+        mode: 0755
+        owner: "{{ gophish_user }}"
+        group: "{{ gophish_user }}"
+
+    - name: create log directoriy for gophish
+      file:
+        path: /var/log/gophish
+        state: directory
+        mode: 0644
+        owner: "{{ gophish_user }}"
+        group: "{{ gophish_user }}"
+
+    - name: unzip gophish
+      unarchive:
+        src: "/home/{{ gophish_user }}/gophish.zip"
+        dest: "/home/{{ gophish_user }}/gophish"
+        remote_src: True  # File is on target server and not locally.
+        creates: "/home/{{ gophish_user }}/gophish/gophish"
+
+    - name: change ownership of Gophish folder and files
+      file:
+        path: /home/{{ gophish_user }}/gophish
+        owner: "{{ gophish_user }}"
+        group: "{{ gophish_user }}"
+        recurse: True
+
+    - name: allow gophish binary to bind to privileged ports using setcap.
+      capabilities:
+        path: /home/{{ gophish_user }}/gophish/gophish
+        capability: cap_net_bind_service+eip
+        state: present
+
+    - name: create systemd service file
+      template:
+        src: gophish.service.j2
+        dest: /etc/systemd/system/gophish.service
+        owner: root
+        group: root
+        mode: 0755
+
+    - name: Enable gophish service
+      service:
+        name: gophish
+        enabled: yes
+        state: started
+
+
+    # crypt-blowfish 2a
+    - name: set admin password
+      shell: sqlite3 gophish.db 'update users set hash="$2a$12$xf8OSa7YIG73jrfCVvP6LuFDvRksT1nybEBLe6qjW2QrVwxBtGNVC" where username="admin";' && touch ../admin_password_updated
+      args:
+        creates: /home/{{ gophish_user }}/admin_password_updated
+        chdir: /home/{{ gophish_user }}/gophish/
+
 
   # roles:
   # - { role: geerlingguy.nginx }

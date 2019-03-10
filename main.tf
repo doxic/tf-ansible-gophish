@@ -4,12 +4,12 @@ variable "cloudflare_zone" {
 
 #  Main ssh key
 resource "hcloud_ssh_key" "default" {
-  name       = "main ssh key"
+  name       = "main ssh key 2"
   public_key = "${file("~/.ssh/id_rsa.pub")}"
 }
 
-resource "hcloud_server" "node1" {
-  name        = "node1"
+resource "hcloud_server" "node2" {
+  name        = "node2"
   image       = "ubuntu-16.04"
   server_type = "cx11"
   ssh_keys    = ["${hcloud_ssh_key.default.name}"]
@@ -42,16 +42,16 @@ resource "hcloud_server" "node1" {
 
 # Create Hetzner rDNS record
 resource "hcloud_rdns" "master" {
-  server_id  = "${hcloud_server.node1.id}"
-  ip_address = "${hcloud_server.node1.ipv4_address}"
-  dns_ptr    = "node1.${var.cloudflare_zone}"
+  server_id  = "${hcloud_server.node2.id}"
+  ip_address = "${hcloud_server.node2.ipv4_address}"
+  dns_ptr    = "node2.${var.cloudflare_zone}"
 }
 
 # Create Cloudflare DNS record
-resource "cloudflare_record" "node1" {
+resource "cloudflare_record" "node2" {
   domain  = "${var.cloudflare_zone}"
-  name    = "node1"
-  value   = "${hcloud_server.node1.ipv4_address}"
+  name    = "node2"
+  value   = "${hcloud_server.node2.ipv4_address}"
   type    = "A"
   proxied = false
 }
@@ -60,13 +60,13 @@ resource "cloudflare_record" "node1" {
 resource "cloudflare_record" "spf" {
   domain  = "${var.cloudflare_zone}"
   name    = "@"
-  value   = "v=spf1 mx ip4:${hcloud_server.node1.ipv4_address} -all"
+  value   = "v=spf1 mx ip4:${hcloud_server.node2.ipv4_address} -all"
   type    = "TXT"
   proxied = false
 }
 
 # Create DKIM DNS record
-resource "cloudflare_record" "dkim1" {
+resource "cloudflare_record" "dkim" {
   domain  = "${var.cloudflare_zone}"
   name    = "mail._domainkey.${var.cloudflare_zone}"
   value   = "v=DKIM1; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4LWGjKtUQMj0qlPKoVg0UgxNY+btD8AqCc7NSSdY/g/0Ajlv77ZjlUqAo+QEydNr0BZt2xtyUs5kYTYBkyIpHyjcyeThElz5Uney90zwTcVfZZSY++KbiThniHcYUFNQQTEQGCXbwmEZhtbb/owxAng8CClAegeQbKMvXe7wKTaN84lQEJ2E7lL5x115ZHf105O3S7Tdtkq/SjQHH7yxDD2TG2NKQO8wVzxbkQsaJZGt84+y0doQ/UaYnvbmgtbeRtllE7dJj4jR+tuJ85R/uSMhWJKxXXJxSiwl5c4zWZSH0Bwofnfv+wy0HOuU7Hqg5OY6K3bz5x1jgGPJUhxu2QIDAQAB"
@@ -74,7 +74,7 @@ resource "cloudflare_record" "dkim1" {
   proxied = false
 }
 
-resource "cloudflare_record" "dkim2" {
+resource "cloudflare_record" "dmarc" {
   domain  = "${var.cloudflare_zone}"
   name    = "_dmarc.${var.cloudflare_zone}"
   value   = "v=DMARC1; p=none; rua=mailto:postmaster@${var.cloudflare_zone}"
@@ -94,7 +94,7 @@ resource "cloudflare_record" "dkim2" {
 resource "cloudflare_record" "mx" {
   domain  = "${var.cloudflare_zone}"
   name    = "@"
-  value   = "10 node1.${var.cloudflare_zone}"
+  value   = "10 node2.${var.cloudflare_zone}"
   type    = "MX"
   proxied = false
 }
@@ -116,9 +116,9 @@ resource "acme_registration" "reg" {
 
 resource "acme_certificate" "certificate" {
   account_key_pem = "${acme_registration.reg.account_key_pem}"
-  common_name     = "node1.doxic.io"
+  common_name     = "node2.doxic.io"
 
-  # subject_alternative_names = ["node1.doxic.io"]
+  # subject_alternative_names = ["node2.doxic.io"]
 
   dns_challenge {
     provider = "cloudflare"

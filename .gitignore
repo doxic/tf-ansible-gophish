@@ -7,3 +7,6 @@ terraform.tfvars
 # Ansible
 *.retry
 *.bak
+
+# Misc
+*.zip

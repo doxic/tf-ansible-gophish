@@ -12,7 +12,18 @@ aws configure
 ```
 wget https://releases.hashicorp.com/terraform/0.11.11/terraform_0.11.11_linux_amd64.zip
 unzip terraform*.zip -d ~/bin/
+chmod +x ~/bin/terraform
 ```
+
+## terraform.tfvars
+```
+cat << EOF > terraform.tfvars
+hcloud_token = ""
+cloudflare_email = ""
+cloudflare_token = ""
+EOF
+```
+
 
 ## Run
 

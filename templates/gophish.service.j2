@@ -1,0 +1,14 @@
+[Unit]
+Description=GoPhish Service
+After=network.target
+
+[Service]
+ExecStart=/home/{{ gophish_user }}/gophish/gophish
+Type=simple
+PIDFile=/var/run/gophish
+User=gophish
+WorkingDirectory=/home/{{ gophish_user }}/gophish/
+
+[Install]
+WantedBy=default.target
+Alias=gophish.service
